@@ -36,5 +36,8 @@
   },
   "permissions": {
     "reddit": true
+  },
+  "dev": {
+    "subreddit": "the_reddwall_dev"
   }
 }
