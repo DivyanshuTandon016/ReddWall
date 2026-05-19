@@ -90,6 +90,9 @@
     "reddit": true,
     "redis": true
   },
+  "marketingAssets": {
+    "icon": "assets/reddwall-icon-1024.png"
+  },
   "dev": {
     "subreddit": "the_reddwall_dev"
   }

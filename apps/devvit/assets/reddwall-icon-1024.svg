@@ -1,5 +1,6 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ReddWall app icon">
-  <g transform="translate(512 512) scale(5.35) translate(-100 -94.5)">
+  <rect width="1024" height="1024" fill="#000000"/>
+  <g transform="translate(512 512) scale(6.1) translate(-100 -94.5)">
     <path d="M100 18L158 38V88C158 122 136 151 100 171C64 151 42 122 42 88V38L100 18Z" fill="#2D2D2D" stroke="#FF5A1F" stroke-width="3" stroke-linejoin="round"/>
     <path d="M100 31L146 47V88C146 113 130 136 100 153C70 136 54 113 54 88V47L100 31Z" fill="#353535" opacity="0.96"/>
     <g stroke="#2D2D2D" stroke-width="3" stroke-linejoin="round">
