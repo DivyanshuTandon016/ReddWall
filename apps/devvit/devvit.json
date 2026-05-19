@@ -8,24 +8,76 @@
   "menu": {
     "items": [
       {
-        "label": "Mop comments",
-        "description": "Remove this comment and all child comments. This might take a few seconds to run.",
+        "label": "Wall off thread",
+        "description": "Preview, lock, or remove a comment and its replies with ReddWall.",
         "location": "comment",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/mop-comment"
+        "endpoint": "/internal/menu/wall-thread"
       },
       {
-        "label": "Mop post comments",
-        "description": "Remove all comments of this post. This might take a few seconds to run.",
+        "label": "Raise ReddWall",
+        "description": "Contain a risky post with preview, phrase targeting, locks, removals, and strict crowd control.",
         "location": "post",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/mop-post"
+        "endpoint": "/internal/menu/raise-wall"
+      },
+      {
+        "label": "Recent ReddWall Activity",
+        "description": "View the latest ReddWall previews and moderation runs for this subreddit.",
+        "location": ["subreddit", "post"],
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/history"
       }
     ]
   },
   "forms": {
-    "mopComment": "/internal/form/mop-comment-submit",
-    "mopPost": "/internal/form/mop-post-submit"
+    "wallThread": "/internal/form/wall-thread-submit",
+    "raiseWall": "/internal/form/raise-wall-submit",
+    "auditHistory": "/internal/form/audit-history-close"
+  },
+  "settings": {
+    "subreddit": {
+      "defaultPhrases": {
+        "type": "paragraph",
+        "label": "Default target phrases",
+        "helpText": "Pre-fill ReddWall phrase targeting. Separate phrases with commas or new lines.",
+        "defaultValue": "spam\nbrigading\nbadsite"
+      },
+      "defaultPreviewOnly": {
+        "type": "boolean",
+        "label": "Preview by default",
+        "helpText": "Open ReddWall forms in preview mode first.",
+        "defaultValue": true
+      },
+      "defaultRemove": {
+        "type": "boolean",
+        "label": "Remove targeted comments by default",
+        "defaultValue": true
+      },
+      "defaultLock": {
+        "type": "boolean",
+        "label": "Lock targeted comments by default",
+        "defaultValue": true
+      },
+      "defaultProtectDistinguished": {
+        "type": "boolean",
+        "label": "Protect distinguished comments by default",
+        "helpText": "Leave mod/admin distinguished comments untouched.",
+        "defaultValue": true
+      },
+      "defaultLockPost": {
+        "type": "boolean",
+        "label": "Lock posts by default",
+        "helpText": "Only affects the post-level Raise ReddWall action.",
+        "defaultValue": false
+      },
+      "defaultStrictCrowdControl": {
+        "type": "boolean",
+        "label": "Strict crowd control by default",
+        "helpText": "Only affects the post-level Raise ReddWall action.",
+        "defaultValue": false
+      }
+    }
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install"
@@ -35,7 +87,8 @@
     "dev": "vite build --watch"
   },
   "permissions": {
-    "reddit": true
+    "reddit": true,
+    "redis": true
   },
   "dev": {
     "subreddit": "the_reddwall_dev"
