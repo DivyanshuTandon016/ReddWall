@@ -6,10 +6,7 @@ import {
   type CommentScreen,
 } from './reddwall-helpers';
 
-const makeComment = (
-  body: string,
-  distinguished = false
-): CommentScreen => ({
+const makeComment = (body: string, distinguished = false): CommentScreen => ({
   body,
   isDistinguished: () => distinguished,
 });
@@ -38,6 +35,12 @@ describe('describeWallAction', () => {
     expect(describeWallAction({ lock: true, remove: false })).toBe('locked');
     expect(describeWallAction({ lock: false, remove: true })).toBe('removed');
   });
+
+  it('describes post-only containment without a comment action', () => {
+    expect(describeWallAction({ lock: false, remove: false })).toBe(
+      'left unchanged'
+    );
+  });
 });
 
 describe('getCommentDecision', () => {
@@ -52,8 +55,8 @@ describe('getCommentDecision', () => {
   });
 
   it('skips comments that do not match phrase filters', () => {
-    expect(getCommentDecision(makeComment('normal reply'), false, ['spam'])).toBe(
-      'skip-phrase-filter'
-    );
+    expect(
+      getCommentDecision(makeComment('normal reply'), false, ['spam'])
+    ).toBe('skip-phrase-filter');
   });
 });

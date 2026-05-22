@@ -35,7 +35,11 @@ export const describeWallAction = ({ lock, remove }: WallAction): string => {
     return 'locked';
   }
 
-  return 'removed';
+  if (remove) {
+    return 'removed';
+  }
+
+  return 'left unchanged';
 };
 
 export const getCommentDecision = (
