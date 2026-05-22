@@ -35,10 +35,16 @@ const getTargetId = (values: WallFormValues) => {
   return context.postId;
 };
 
-const requireModerationAction = (values: ReturnType<typeof normalizeValues>) =>
+const hasCommentAction = (values: ReturnType<typeof normalizeValues>) =>
   values.previewOnly || values.lock || values.remove;
 
-const toToast = (result: { message: string; success: boolean }): UiResponse => ({
+const hasPostAction = (values: ReturnType<typeof normalizeValues>) =>
+  hasCommentAction(values) || values.lockPost || values.strictCrowdControl;
+
+const toToast = (result: {
+  message: string;
+  success: boolean;
+}): UiResponse => ({
   showToast: `${result.success ? 'Success' : 'Failed'}: ${result.message}`,
 });
 
@@ -46,7 +52,7 @@ forms.post('/wall-thread-submit', async (c) => {
   const values = await c.req.json<WallFormValues>();
   const normalized = normalizeValues(values);
 
-  if (!requireModerationAction(normalized)) {
+  if (!hasCommentAction(normalized)) {
     return c.json<UiResponse>(
       {
         showToast: 'Select preview, lock, or remove before running ReddWall.',
@@ -89,10 +95,11 @@ forms.post('/raise-wall-submit', async (c) => {
   const values = await c.req.json<WallFormValues>();
   const normalized = normalizeValues(values);
 
-  if (!requireModerationAction(normalized)) {
+  if (!hasPostAction(normalized)) {
     return c.json<UiResponse>(
       {
-        showToast: 'Select preview, lock, or remove before running ReddWall.',
+        showToast:
+          'Select preview, a comment action, post lock, or crowd control before running ReddWall.',
       },
       200
     );
