@@ -11,7 +11,11 @@
   and strict crowd control options added.
 - Redis-backed audit history added for recent previews and moderation runs.
 - Subreddit settings added for default phrases and ReddWall toggles.
+- Install-time default behavior declared in `devvit.json`.
+- Batched comment actions and partial-failure reporting added for larger runs.
 - Helper tests added.
+- Submission copy, impact notes, architecture notes, and demo script drafted.
+- Verified build uploaded to Devvit for the final app listing.
 
 ## Next
 
@@ -19,6 +23,11 @@
 - Playtest both menu actions against real Reddit content.
 - Playtest subreddit settings by changing default phrases and reopening the
   ReddWall forms.
-- Add richer partial-failure handling for large threads.
-- Add install-time settings for default behavior.
-- Draft Devpost description, project impact, and demo script.
+- Confirm recent activity history after the final uploaded build.
+- Fill the required submission usernames.
+- Fill Project Impact with 1-3 communities that would benefit.
+- Provide the judging link to a public Reddit post running ReddWall in a public
+  subreddit under 200 members.
+- Add the optional demo video link only if the footage is public and under one
+  minute for judging.
+- Submit on Devpost.
