@@ -41,8 +41,21 @@ type WallResult = {
   success: boolean;
 };
 
+type WallActionFailures = {
+  failedLocks: number;
+  failedPostActions: string[];
+  failedRemovals: number;
+};
+
+type CommentMutationResult = {
+  failed: number;
+};
+
+const COMMENT_MUTATION_BATCH_SIZE = 25;
+
 const saveAuditRecord = async (input: {
   action: AuditAction;
+  failures?: WallActionFailures;
   lock: boolean;
   lockPost?: boolean;
   matchTerms: string[];
@@ -59,6 +72,9 @@ const saveAuditRecord = async (input: {
   try {
     await appendAuditRecord({
       action: input.action,
+      failedLocks: input.failures?.failedLocks ?? 0,
+      failedPostActions: input.failures?.failedPostActions ?? [],
+      failedRemovals: input.failures?.failedRemovals ?? 0,
       lock: input.lock,
       lockPost: Boolean(input.lockPost),
       matchTerms: input.matchTerms,
@@ -147,6 +163,91 @@ const buildWallSummary = (
 const canModeratePosts = (permissions: readonly string[]) =>
   permissions.includes('all') || permissions.includes('posts');
 
+const mutateCommentsInBatches = async (
+  comments: readonly Comment[],
+  shouldSkip: (comment: Comment) => boolean,
+  mutate: (comment: Comment) => Promise<unknown>
+): Promise<CommentMutationResult> => {
+  let failed = 0;
+
+  for (
+    let start = 0;
+    start < comments.length;
+    start += COMMENT_MUTATION_BATCH_SIZE
+  ) {
+    const batch = comments
+      .slice(start, start + COMMENT_MUTATION_BATCH_SIZE)
+      .filter((comment) => !shouldSkip(comment));
+    const results = await Promise.allSettled(batch.map(mutate));
+
+    failed += results.filter((result) => result.status === 'rejected').length;
+  }
+
+  return { failed };
+};
+
+const applyCommentActions = async (
+  comments: readonly Comment[],
+  shouldLock: boolean,
+  shouldRemove: boolean
+): Promise<WallActionFailures> => {
+  const failures: WallActionFailures = {
+    failedLocks: 0,
+    failedPostActions: [],
+    failedRemovals: 0,
+  };
+
+  if (shouldLock && comments.length > 0) {
+    const result = await mutateCommentsInBatches(
+      comments,
+      (comment) => comment.locked,
+      (comment) => comment.lock()
+    );
+
+    failures.failedLocks = result.failed;
+  }
+
+  if (shouldRemove && comments.length > 0) {
+    const result = await mutateCommentsInBatches(
+      comments,
+      (comment) => comment.removed,
+      (comment) => comment.remove()
+    );
+
+    failures.failedRemovals = result.failed;
+  }
+
+  return failures;
+};
+
+const addPostActionFailure = (
+  failures: WallActionFailures,
+  action: string,
+  err: unknown
+) => {
+  failures.failedPostActions.push(action);
+  console.error(`ReddWall ${action} failed`, err);
+};
+
+const hasActionFailures = (failures: WallActionFailures) =>
+  failures.failedLocks > 0 ||
+  failures.failedRemovals > 0 ||
+  failures.failedPostActions.length > 0;
+
+const describeActionFailures = (failures: WallActionFailures) => {
+  const parts = [
+    failures.failedLocks > 0
+      ? `${failures.failedLocks} comment lock(s)`
+      : undefined,
+    failures.failedRemovals > 0
+      ? `${failures.failedRemovals} comment removal(s)`
+      : undefined,
+    ...failures.failedPostActions,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? ` Some actions failed: ${parts.join(', ')}.` : '';
+};
+
 export async function handleReddWallPost(
   props: WallPostProps
 ): Promise<WallResult> {
@@ -226,24 +327,26 @@ export async function handleReddWallPost(
       };
     }
 
-    if (shouldLock && selection.targets.length > 0) {
-      await Promise.all(
-        selection.targets.map((comment) => comment.locked || comment.lock())
-      );
-    }
-
-    if (shouldRemove && selection.targets.length > 0) {
-      await Promise.all(
-        selection.targets.map((comment) => comment.removed || comment.remove())
-      );
-    }
+    const failures = await applyCommentActions(
+      selection.targets,
+      shouldLock,
+      shouldRemove
+    );
 
     if (props.strictCrowdControl) {
-      await post.updateCrowdControlLevel('STRICT');
+      try {
+        await post.updateCrowdControlLevel('STRICT');
+      } catch (err: unknown) {
+        addPostActionFailure(failures, 'strict crowd control', err);
+      }
     }
 
     if (props.lockPost && !post.locked) {
-      await post.lock();
+      try {
+        await post.lock();
+      } catch (err: unknown) {
+        addPostActionFailure(failures, 'post lock', err);
+      }
     }
 
     const actionDescription = describeWallAction({
@@ -256,9 +359,15 @@ export async function handleReddWallPost(
       `ReddWall handled ${selection.targets.length} comment(s) in ${timeElapsed} seconds.`
     );
 
-    const message = `ReddWall raised: ${actionDescription} ${wallSummary} Refresh the page to see the cleanup.`;
+    const success = !hasActionFailures(failures);
+    const message = `${
+      success ? 'ReddWall raised' : 'ReddWall partly raised'
+    }: ${actionDescription} ${wallSummary}${describeActionFailures(
+      failures
+    )} Refresh the page to see the cleanup.`;
     await saveAuditRecord({
       action: 'raise-wall',
+      failures,
       lock: shouldLock,
       lockPost: props.lockPost,
       matchTerms,
@@ -269,17 +378,20 @@ export async function handleReddWallPost(
       selection,
       strictCrowdControl: props.strictCrowdControl,
       subredditId: props.subredditId,
-      success: true,
+      success,
       targetId: props.postId,
     });
 
     return {
       message,
-      success: true,
+      success,
     };
   } catch (err: unknown) {
     console.error(err);
-    return { success: false, message: 'ReddWall failed! Please try again later.' };
+    return {
+      success: false,
+      message: 'ReddWall failed! Please try again later.',
+    };
   }
 }
 
@@ -358,17 +470,11 @@ export async function handleReddWallThread(
       };
     }
 
-    if (shouldLock && selection.targets.length > 0) {
-      await Promise.all(
-        selection.targets.map((comment) => comment.locked || comment.lock())
-      );
-    }
-
-    if (shouldRemove && selection.targets.length > 0) {
-      await Promise.all(
-        selection.targets.map((comment) => comment.removed || comment.remove())
-      );
-    }
+    const failures = await applyCommentActions(
+      selection.targets,
+      shouldLock,
+      shouldRemove
+    );
 
     const actionDescription = describeWallAction({
       lock: shouldLock,
@@ -380,9 +486,15 @@ export async function handleReddWallThread(
       `ReddWall handled ${selection.targets.length} comment(s) in ${timeElapsed} seconds.`
     );
 
-    const message = `Thread walled off: ${actionDescription} ${wallSummary} Refresh the page to see the cleanup.`;
+    const success = !hasActionFailures(failures);
+    const message = `${
+      success ? 'Thread walled off' : 'Thread partly walled off'
+    }: ${actionDescription} ${wallSummary}${describeActionFailures(
+      failures
+    )} Refresh the page to see the cleanup.`;
     await saveAuditRecord({
       action: 'wall-thread',
+      failures,
       lock: shouldLock,
       matchTerms,
       message,
@@ -391,16 +503,19 @@ export async function handleReddWallThread(
       remove: shouldRemove,
       selection,
       subredditId: props.subredditId,
-      success: true,
+      success,
       targetId: props.commentId,
     });
 
     return {
       message,
-      success: true,
+      success,
     };
   } catch (err: unknown) {
     console.error(err);
-    return { success: false, message: 'ReddWall failed! Please try again later.' };
+    return {
+      success: false,
+      message: 'ReddWall failed! Please try again later.',
+    };
   }
 }
