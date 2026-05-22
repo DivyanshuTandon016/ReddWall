@@ -34,3 +34,6 @@ npm run dev
 ```
 
 The current development subreddit is `r/the_reddwall_dev`.
+
+Submission materials and the required field checklist are drafted in
+[`docs/submission.md`](docs/submission.md).
