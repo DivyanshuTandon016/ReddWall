@@ -22,6 +22,9 @@ Fields:
   targetId: string;
   subredditId: string;
   moderatorName: string;
+  failedLocks?: number;
+  failedRemovals?: number;
+  failedPostActions?: string[];
   previewOnly: boolean;
   lock: boolean;
   remove: boolean;
