@@ -82,7 +82,26 @@ describe('audit record form summaries', () => {
     );
     expect(getAuditRecordStats(record)).toBe('3 targeted, 3 skipped | ok');
     expect(getAuditRecordDetails(record)).toBe(
-      'Phrases: spam, brigading. Options: remove, lock. Skipped: 1 distinguished, 2 phrase-filtered.'
+      'Phrases: spam, brigading. Options: remove, lock. Skipped: 1 distinguished, 2 phrase-filtered. Failures: none.'
+    );
+  });
+
+  it('surfaces partial action failures', () => {
+    const record = buildAuditRecord(
+      makeInput({
+        failedLocks: 2,
+        failedPostActions: ['post lock'],
+        failedRemovals: 1,
+        success: false,
+      }),
+      new Date('2026-05-19T00:00:00.000Z')
+    );
+
+    expect(getAuditRecordStats(record)).toBe(
+      '3 targeted, 3 skipped | failed | 4 action failure(s)'
+    );
+    expect(getAuditRecordDetails(record)).toContain(
+      'Failures: 2 comment lock, 1 comment removal, post lock.'
     );
   });
 });

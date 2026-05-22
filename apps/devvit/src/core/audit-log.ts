@@ -8,6 +8,9 @@ export type AuditTargetId = T1 | T3;
 export type AuditRecord = {
   action: AuditAction;
   createdAt: string;
+  failedLocks?: number;
+  failedPostActions?: string[];
+  failedRemovals?: number;
   id: string;
   lock: boolean;
   lockPost: boolean;
@@ -68,6 +71,23 @@ const getAuditOptions = (record: AuditRecord) => {
 const getAuditPhrases = (record: AuditRecord) =>
   record.matchTerms.length > 0 ? record.matchTerms.join(', ') : 'none';
 
+const getAuditFailureCount = (record: AuditRecord) =>
+  (record.failedLocks ?? 0) +
+  (record.failedRemovals ?? 0) +
+  (record.failedPostActions?.length ?? 0);
+
+const getAuditFailures = (record: AuditRecord) => {
+  const failures = [
+    record.failedLocks ? `${record.failedLocks} comment lock` : undefined,
+    record.failedRemovals
+      ? `${record.failedRemovals} comment removal`
+      : undefined,
+    ...(record.failedPostActions ?? []),
+  ].filter(Boolean);
+
+  return failures.length > 0 ? failures.join(', ') : 'none';
+};
+
 export const getAuditRecordHeading = (record: AuditRecord): string =>
   `${getAuditCreatedAt(record)} - ${getAuditMode(record)} ${getAuditActionLabel(
     record
@@ -76,8 +96,11 @@ export const getAuditRecordHeading = (record: AuditRecord): string =>
 export const getAuditRecordStats = (record: AuditRecord): string => {
   const skipped = record.skippedDistinguished + record.skippedPhraseFilter;
   const status = record.success ? 'ok' : 'failed';
+  const failureCount = getAuditFailureCount(record);
+  const failureSummary =
+    failureCount > 0 ? ` | ${failureCount} action failure(s)` : '';
 
-  return `${record.targetedCount} targeted, ${skipped} skipped | ${status}`;
+  return `${record.targetedCount} targeted, ${skipped} skipped | ${status}${failureSummary}`;
 };
 
 export const getAuditRecordDetails = (record: AuditRecord): string =>
@@ -85,7 +108,7 @@ export const getAuditRecordDetails = (record: AuditRecord): string =>
     record
   )}. Skipped: ${record.skippedDistinguished} distinguished, ${
     record.skippedPhraseFilter
-  } phrase-filtered.`;
+  } phrase-filtered. Failures: ${getAuditFailures(record)}.`;
 
 export const formatAuditRecord = (record: AuditRecord): string =>
   [
